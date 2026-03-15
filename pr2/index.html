@@ -1,1 +1,311 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Зарядна станція електромобілів - Моніторинг</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏎 Зарядна станція електромобілів</h1>
+            <p>Останнє оновлення: <span id="lastUpdate" aria-live="polite">--:--:--</span></p>
+        </header>
 
+        <main>
+            <section class="controls" aria-label="Панель керування">
+                <button id="toggleChargingBtn" class="btn" style="background: #8e44ad; color: white;" aria-label="Розпочати або зупинити зарядку">⚡ Розпочати зарядку</button>
+                <button id="updateBtn" class="btn btn-primary" aria-label="Оновити дані">🔄 Оновити</button>
+                <button id="autoUpdateBtn" class="btn btn-success" aria-label="Автооновлення">▶️ Автооновлення</button>
+                <button id="exportBtn" class="btn btn-info" aria-label="Експорт даних">📥 Експорт (CSV)</button>
+                <span id="autoStatus" aria-live="polite">Вимкнено</span>
+            </section>
+
+            <section class="info-panel" aria-label="Загальна інформація">
+                <div class="info-card">
+                    <h4>Стан роз'єму</h4>
+                    <span id="connectorStatus" style="color: #A7211D;">🔌 Відключено</span>
+                </div>
+                <div class="info-card">
+                    <h4>Зарядок за день</h4>
+                    <span id="dailyCharges">0</span>
+                </div>
+                <div class="info-card">
+                    <h4>Спожита енергія</h4>
+                    <span><span id="totalEnergy">0.00</span> кВт⋅год</span>
+                </div>
+            </section>
+
+            <section class="dashboard" aria-label="Показники зарядної станції">
+                <article class="card">
+                    <h3>Потужність заряду</h3>
+                    <div class="value">
+                        <span id="param0" class="big-number" aria-live="polite">0</span>
+                        <span class="unit">кВт</span>
+                    </div>
+                    <div id="status0" class="status-indicator" role="status" aria-label="Статус">●</div>
+                    <div class="chart-container"><canvas id="chart0"></canvas></div>
+                </article>
+
+                <article class="card">
+                    <h3>Напруга заряду</h3>
+                    <div class="value">
+                        <span id="param1" class="big-number" aria-live="polite">0</span>
+                        <span class="unit">В</span>
+                    </div>
+                    <div id="status1" class="status-indicator" role="status" aria-label="Статус">●</div>
+                    <div class="chart-container"><canvas id="chart1"></canvas></div>
+                </article>
+
+                <article class="card">
+                    <h3>Струм заряду</h3>
+                    <div class="value">
+                        <span id="param2" class="big-number" aria-live="polite">0</span>
+                        <span class="unit">А</span>
+                    </div>
+                    <div id="status2" class="status-indicator" role="status" aria-label="Статус">●</div>
+                    <div class="chart-container"><canvas id="chart2"></canvas></div>
+                </article>
+
+                <article class="card">
+                    <h3>Рівень акумулятора</h3>
+                    <div class="value">
+                        <span id="param3" class="big-number" aria-live="polite">0</span>
+                        <span class="unit">%</span>
+                    </div>
+                    <div id="status3" class="status-indicator" role="status" aria-label="Статус">●</div>
+                    <div class="chart-container"><canvas id="chart3"></canvas></div>
+                </article>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        let autoInterval = null;
+        let isAutoEnabled = false;
+        let isCharging = false;
+        let dailyChargesCount = 0;
+        let totalEnergyConsumed = 0.0;
+        const historyData = []; 
+        const charts = []; 
+        const MAX_CHART_POINTS = 10; 
+
+        const params = [
+            { "name": "Потужність", "unit": "кВт", "absoluteMin": 0, "absoluteMax": 150, "warning": [15, 135], "normal": [30, 110] },
+            { "name": "Напруга", "unit": "В", "absoluteMin": 200, "absoluteMax": 800, "warning": [280, 550], "normal": [350, 450] },
+            { "name": "Струм", "unit": "А", "absoluteMin": 0, "absoluteMax": 200, "warning": [20, 180], "normal": [50, 150] },
+            { "name": "Заряд акумулятора", "unit": "%", "absoluteMin": 0, "absoluteMax": 100, "warning": [10, 95], "normal": [20, 90] }
+        ];
+
+        function initCharts() {
+            params.forEach((param, idx) => {
+                const ctx = document.getElementById('chart' + idx).getContext('2d');
+                charts[idx] = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: [], 
+                        datasets: [{
+                            label: param.name,
+                            data: [],
+                            borderColor: '#7f8c8d',
+                            backgroundColor: 'rgba(44, 62, 80, 0.1)',
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            fill: true,
+                            tension: 0.3 
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { display: true, ticks: { font: { size: 10 } } },
+                            y: { display: true, min: 0, max: param.absoluteMax }
+                        }
+                    }
+                });
+            });
+        }
+
+        function playAlertSound() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                oscillator.type = 'square';
+                oscillator.frequency.setValueAtTime(600, audioCtx.currentTime); 
+                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime); 
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                oscillator.start();
+                oscillator.stop(audioCtx.currentTime + 0.3); 
+            } catch (e) { console.warn("Аудіо заблоковано."); }
+        }
+
+        function exportToCSV() {
+            if (historyData.length === 0) {
+                alert("Немає даних для експорту.");
+                return;
+            }
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
+            csvContent += "Час,Статус,Потужність (кВт),Напруга (В),Струм (А),Заряд (%),Спожита енергія (кВт*год)\n";
+            historyData.forEach(row => { csvContent += row.join(",") + "\n"; });
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "ev_station_history.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function getRandom(min, max, decimals = 1) {
+            return (Math.random() * (max - min) + min).toFixed(decimals);
+        }
+
+        function getStatus(value, param) {
+            const v = parseFloat(value);
+            if (v >= param.normal[0] && v <= param.normal[1]) return 'normal';
+            if (v >= param.warning[0] && v <= param.warning[1]) return 'warning';
+            return 'danger';
+        }
+
+        function toggleChargingAction() {
+            const btn = document.getElementById('toggleChargingBtn');
+            const statusEl = document.getElementById('connectorStatus');
+            const chargesEl = document.getElementById('dailyCharges');
+
+            if (!isCharging) {
+                isCharging = true;
+                dailyChargesCount++;
+                chargesEl.textContent = dailyChargesCount;
+                
+                statusEl.innerHTML = '🔋 Підключено';
+                statusEl.style.color = '#2ecc71';
+                
+                btn.innerHTML = '🛑 Зупинити зарядку';
+                btn.style.background = '#e74c3c';
+            } else {
+                isCharging = false;
+                
+                statusEl.innerHTML = '🔌 Відключено';
+                statusEl.style.color = '#A7211D';
+                
+                btn.innerHTML = '⚡ Розпочати зарядку';
+                btn.style.background = '#8e44ad';
+            }
+            updateAll();
+        }
+
+        function updateAll() {
+            try {
+                const currentTime = new Date().toLocaleTimeString('uk-UA');
+                document.getElementById('lastUpdate').textContent = currentTime;
+                
+                let isDanger = false;
+                const chargingStatusText = isCharging ? "Заряджається" : "Вимкнено";
+                const currentRecord = [currentTime, chargingStatusText]; 
+
+                if (isCharging) {
+                    totalEnergyConsumed += (Math.random() * 0.5 + 0.1);
+                }
+                document.getElementById('totalEnergy').textContent = totalEnergyConsumed.toFixed(2);
+
+                params.forEach((param, idx) => {
+                    const decimals = param.unit === '%' ? 0 : 1;
+                    let value = 0;
+                    let status = 'normal';
+
+                    if (isCharging) {
+                        value = getRandom(param.absoluteMin, param.absoluteMax, decimals);
+                        status = getStatus(value, param);
+                    } else {
+                        value = (0).toFixed(decimals);
+                        status = 'normal';
+                    }
+
+                    currentRecord.push(value); 
+
+                    const valueElement = document.getElementById('param' + idx);
+                    const indicator = document.getElementById('status' + idx);
+                    valueElement.textContent = value;
+                    
+                    if (!isCharging) {
+                        indicator.className = 'status-indicator';
+                        indicator.style.color = '#7f8c8d';
+                        indicator.setAttribute('aria-label', `Статус: Вимкнено`);
+                    } else {
+                        indicator.className = 'status-indicator status-' + status;
+                        indicator.style.color = '';
+                        let statusText = status === 'normal' ? 'У нормі' : status === 'warning' ? 'Попередження' : 'Небезпека';
+                        indicator.setAttribute('aria-label', `Статус: ${statusText}`);
+                        
+                        if (status === 'danger') isDanger = true;
+                    }
+
+                    const chart = charts[idx];
+                    chart.data.labels.push(currentTime);
+                    chart.data.datasets[0].data.push(value);
+
+                    if (chart.data.labels.length > MAX_CHART_POINTS) {
+                        chart.data.labels.shift();
+                        chart.data.datasets[0].data.shift();
+                    }
+                    
+                    if (!isCharging) {
+                        chart.data.datasets[0].borderColor = '#7f8c8d';
+                    } else {
+                        chart.data.datasets[0].borderColor = status === 'danger' ? '#A7211D' : status === 'warning' ? '#D58718' : '#05472A';
+                    }
+                    chart.update();
+                });
+
+                currentRecord.push(totalEnergyConsumed.toFixed(2));
+                historyData.push(currentRecord);
+
+                if (isDanger && isCharging) {
+                    playAlertSound();
+                }
+
+            } catch (error) {
+                console.error("[Помилка оновлення]:", error.message);
+            }
+        }
+
+        function toggleAuto() {
+            try {
+                const btn = document.getElementById('autoUpdateBtn');
+                const status = document.getElementById('autoStatus');
+                if (!isAutoEnabled) {
+                    autoInterval = setInterval(updateAll, 3000);
+                    isAutoEnabled = true;
+                    btn.innerHTML = '⏸️ Зупинити';
+                    btn.className = 'btn btn-danger';
+                    status.textContent = 'Увімкнено (3 сек)';
+                } else {
+                    clearInterval(autoInterval);
+                    isAutoEnabled = false;
+                    btn.innerHTML = '▶️ Автооновлення';
+                    btn.className = 'btn btn-success';
+                    status.textContent = 'Вимкнено';
+                }
+            } catch (error) {
+                console.error("[Помилка автооновлення]:", error.message);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initCharts();
+            updateAll();
+            
+            document.getElementById('toggleChargingBtn').addEventListener('click', toggleChargingAction);
+            document.getElementById('updateBtn').addEventListener('click', updateAll);
+            document.getElementById('autoUpdateBtn').addEventListener('click', toggleAuto);
+            document.getElementById('exportBtn').addEventListener('click', exportToCSV);
+        });
+    </script>
+</body>
+</html>
