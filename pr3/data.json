@@ -1,0 +1,38 @@
+[
+    {
+        "id": "1775239877699",
+        "pointNumber": "12345",
+        "objectName": "Об'єкт",
+        "meterDetails": "NIK 12345",
+        "verificationDate": "2026-05-02",
+        "underControl": true,
+        "registrationDate": "2026-04-03T18:11:17.699Z"
+    },
+    {
+        "id": "1775241617003",
+        "pointNumber": "3333",
+        "objectName": "пупупу",
+        "meterDetails": "прум",
+        "verificationDate": "2026-05-06",
+        "underControl": false,
+        "registrationDate": "2026-04-03T18:40:17.003Z"
+    },
+    {
+        "id": "1775241635806",
+        "pointNumber": "555555",
+        "objectName": "шшшшшшш",
+        "meterDetails": "про",
+        "verificationDate": "2026-04-02",
+        "underControl": false,
+        "registrationDate": "2026-04-03T18:40:35.806Z"
+    },
+    {
+        "id": "1775241665429",
+        "pointNumber": "6666666",
+        "objectName": "адреса",
+        "meterDetails": "апро",
+        "verificationDate": "2026-05-02",
+        "underControl": false,
+        "registrationDate": "2026-04-03T18:41:05.429Z"
+    }
+]
