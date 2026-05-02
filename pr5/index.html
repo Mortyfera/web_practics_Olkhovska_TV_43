@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Моніторинг Геотермальної Електростанції</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+</head>
+<body class="bg-light">
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Геотермальна Електростанція</h2>
+            <div class="status-indicator">Статус: <span id="status" class="status-offline fw-bold text-danger">Офлайн</span></div>
+        </div>
+
+        <div class="row text-center mb-4">
+            <div class="col"><div class="metric-card bg-white p-3 rounded shadow-sm"><div class="text-muted">Температура</div><h4 id="val-temp" class="text-primary">-- °C</h4></div></div>
+            <div class="col"><div class="metric-card bg-white p-3 rounded shadow-sm"><div class="text-muted">Тиск пари</div><h4 id="val-press" class="text-primary">-- бар</h4></div></div>
+            <div class="col"><div class="metric-card bg-white p-3 rounded shadow-sm"><div class="text-muted">Потужність</div><h4 id="val-power" class="text-success">-- МВт</h4></div></div>
+            <div class="col"><div class="metric-card bg-white p-3 rounded shadow-sm"><div class="text-muted">Витрата</div><h4 id="val-flow" class="text-primary">-- кг/с</h4></div></div>
+            <div class="col"><div class="metric-card bg-white p-3 rounded shadow-sm"><div class="text-muted">Ефективність</div><h4 id="val-eff" class="text-warning">-- %</h4></div></div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="metric-card bg-white p-3 rounded shadow-sm h-100">
+                    <h5>Графік потужності</h5>
+                    <div style="position: relative; height: 300px; width: 100%;">
+                        <canvas id="powerChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="metric-card bg-white p-3 rounded shadow-sm h-100">
+                    <h5>T-S Діаграма</h5>
+                    <div id="tsDiagram" style="height: 300px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-4">
+                <div class="metric-card bg-white p-3 rounded shadow-sm">
+                    <h5>Схема станції</h5>
+                    <svg id="plant-schema" viewBox="0 0 200 250" class="w-100">
+                        <path d="M40,200 L40,50 L80,50 L80,200" fill="none" stroke="#0d6efd" stroke-width="4"/>
+                        <text x="35" y="220" font-size="12">Свердловина</text>
+                        <rect x="60" y="20" width="60" height="40" fill="#ffc107" rx="5"/>
+                        <text x="65" y="45" font-size="10">Випарник</text>
+                        <polygon points="140,20 180,30 180,50 140,60" fill="#198754"/>
+                        <text x="145" y="45" font-size="10" fill="white">Турбіна</text>
+                        <path d="M120,40 L140,40" stroke="#dc3545" stroke-width="3" id="steam-pipe"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="col-md-8">
+                <div class="metric-card table-responsive bg-white p-3 rounded shadow-sm">
+                    <h5>Історія вимірювань</h5>
+                    <table class="table table-hover table-sm mt-2">
+                        <thead class="table-dark">
+                            <tr><th>Час</th><th>Температура</th><th>Тиск</th><th>Потужність</th><th>Витрата</th><th>Ефективність</th></tr>
+                        </thead>
+                        <tbody id="history-table"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="api.js"></script>
+    <script src="charts.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
