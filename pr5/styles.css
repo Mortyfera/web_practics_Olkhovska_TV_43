@@ -1,0 +1,32 @@
+body {
+    background-color: #f4f6f9;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.metric-card {
+    background: #ffffff;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    height: 100%;
+}
+
+.status-indicator {
+    font-size: 1.1rem;
+}
+
+.status-online {
+    color: #198754;
+    font-weight: 700;
+}
+
+.status-offline {
+    color: #dc3545;
+    font-weight: 700;
+}
+
+#plant-schema {
+    background-color: #fdfdfd;
+    border: 1px dashed #ced4da;
+    border-radius: 5px;
+}
